@@ -531,6 +531,7 @@ export default function KanbanBoard(
   const [detailsOpen, setDetailsOpen] = React.useState(false)
   const [selected, setSelected] = React.useState<TaskRecord | null>(null)
   const [templateOverride, setTemplateOverride] = React.useState<string>("auto")
+  const [visualStyle, setVisualStyle] = React.useState<string>("auto")
   const [, setRunning] = React.useState(false)
   const [runError, setRunError] = React.useState<string | null>(null)
   const [copiedText, setCopiedText] = React.useState(false)
@@ -658,6 +659,7 @@ export default function KanbanBoard(
           word_count: 450,
           tone: taskType === "article" ? "marketing_editorial" : undefined,
           deliverable: getDeliverableForTaskType(taskType),
+          visual_style: visualStyle !== "auto" ? visualStyle : undefined,
           assets: {
             logos: splitLines(taskLogoUrls),
             images: splitLines(taskImageUrls),
@@ -694,6 +696,7 @@ export default function KanbanBoard(
       setTaskInspirationUrls("")
       setTaskType("campaign_plan")
       setTaskPriority("normal")
+      setVisualStyle("auto")
       setLpBrandName(""); setLpLogoUrl(""); setLpPageSlug(""); setLpColorScheme("dark_luxury"); setLpTemplate("auto")
       setLpLanguage("he"); setLpWhatsappEnabled(false); setLpWhatsappNumber(""); setLpWhatsappMessage("")
       setLpPhoneInNav(""); setLpMetaPixelId(""); setLpZapierWebhook(""); setLpRedirectUrl("")
@@ -1733,6 +1736,21 @@ export default function KanbanBoard(
                       className="dark-scrollbar min-h-[72px] w-full rounded-xl border border-white/10 bg-black/30 p-3 text-sm text-white outline-none"
                       rows={3}
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-white/80">Visual Style</Label>
+                    <select
+                      value={visualStyle}
+                      onChange={(e) => setVisualStyle(e.target.value)}
+                      className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none"
+                    >
+                      <option value="auto">🤖 Auto — AI decides based on brief</option>
+                      <option value="luxury_gold">👑 Luxury Gold — dark, premium, gold accents</option>
+                      <option value="bold_modern">⚡ Bold & Modern — clean, strong colors, high contrast</option>
+                      <option value="natural_warm">🌿 Natural & Warm — earthy tones, organic feel</option>
+                      <option value="corporate_trust">🔵 Corporate & Trust — blues, professional, clean</option>
+                      <option value="minimal_elegant">✦ Minimal Elegant — white space, typography-led</option>
+                    </select>
                   </div>
                   <div className="space-y-2">
                     <Label className="text-white/80">Inspiration URLs</Label>
