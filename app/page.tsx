@@ -29,6 +29,7 @@ import {
   Upload,
   X,
   ImagePlus,
+  Trash2,
 } from "lucide-react"
 
 type AgentId =
@@ -149,6 +150,8 @@ export default function Page() {
   const [goals, setGoals] = React.useState<GoalRecord[]>([])
   const [goalsLoading, setGoalsLoading] = React.useState(false)
   const [goalsError, setGoalsError] = React.useState<string | null>(null)
+  const [deletingGoalId, setDeletingGoalId] = React.useState<string | null>(null)
+  const [confirmDeleteGoalId, setConfirmDeleteGoalId] = React.useState<string | null>(null)
 
   // tasks indexed by campaign_id for progress calculation
   const [tasksByCampaign, setTasksByCampaign] = React.useState<Record<string, any[]>>({})
@@ -365,6 +368,29 @@ export default function Page() {
       )
     } finally {
       setCreatingGoal(false)
+    }
+  }
+
+  async function deleteGoal(goalId: string) {
+    setDeletingGoalId(goalId)
+    try {
+      // Delete all tasks for this goal
+      const tasks = await pb.collection("tasks").getFullList({ filter: `goal_id = "${goalId}"` }).catch(() => [])
+      await Promise.all(tasks.map((t: any) => pb.collection("tasks").delete(t.id).catch(() => {})))
+      // Delete all client assets for this goal
+      const assets = await pb.collection("client_assets").getFullList({ filter: `goal_id = "${goalId}"` }).catch(() => [])
+      await Promise.all(assets.map((a: any) => pb.collection("client_assets").delete(a.id).catch(() => {})))
+      // Delete the goal itself
+      await pb.collection("goals").delete(goalId)
+      // Update local state
+      setGoals(prev => prev.filter(g => g.id !== goalId))
+      if (selectedGoalId === goalId) setSelectedGoalId(null)
+      setConfirmDeleteGoalId(null)
+      console.log(`[GOALS] deleted goal ${goalId} + ${tasks.length} tasks + ${assets.length} assets`)
+    } catch (e: any) {
+      console.error("[GOALS] delete failed:", e)
+    } finally {
+      setDeletingGoalId(null)
     }
   }
 
@@ -587,6 +613,14 @@ export default function Page() {
                                 >
                                   <ImagePlus className="h-3 w-3" />
                                   {goalAssets.length > 0 ? goalAssets.length : ""}
+                                </button>
+                                {/* Delete client button */}
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setConfirmDeleteGoalId(g.id) }}
+                                  className="rounded-lg border border-white/10 bg-white/5 px-1.5 py-1 text-[10px] flex items-center text-red-400/50 hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/10 transition-all"
+                                  title="Delete client"
+                                >
+                                  <Trash2 className="h-3 w-3" />
                                 </button>
                               </div>
                             </div>
@@ -814,6 +848,36 @@ export default function Page() {
                 disabled={creatingGoal}
               >
                 {creatingGoal ? "Creating..." : "Create Client"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* ── Confirm Delete Client Dialog ─────────────────────────────────── */}
+        <Dialog open={!!confirmDeleteGoalId} onOpenChange={(o) => { if (!o) setConfirmDeleteGoalId(null) }}>
+          <DialogContent className="border-white/10 bg-[#0B0F18] text-white max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="text-red-400">Delete Client?</DialogTitle>
+            </DialogHeader>
+            <div className="text-sm text-white/70 py-2">
+              {confirmDeleteGoalId && (() => {
+                const g = goals.find(g => g.id === confirmDeleteGoalId)
+                return <>
+                  <p>Are you sure you want to delete <span className="text-white font-medium">{g?.title}</span>?</p>
+                  <p className="mt-2 text-red-400/80">This will permanently delete this client and <strong>all tasks</strong> created for them.</p>
+                </>
+              })()}
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" className="border-white/10 text-white/70" onClick={() => setConfirmDeleteGoalId(null)}>
+                Cancel
+              </Button>
+              <Button
+                className="bg-red-600 hover:bg-red-700 text-white"
+                disabled={deletingGoalId === confirmDeleteGoalId}
+                onClick={() => confirmDeleteGoalId && deleteGoal(confirmDeleteGoalId)}
+              >
+                {deletingGoalId === confirmDeleteGoalId ? "Deleting..." : "Yes, Delete"}
               </Button>
             </DialogFooter>
           </DialogContent>
