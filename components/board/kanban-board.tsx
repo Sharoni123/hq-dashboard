@@ -1248,6 +1248,7 @@ export default function KanbanBoard(
               { key: "image_generator",  label: "Images",  agents: ["image_generator"] },
               { key: "banner_renderer",  label: "Banners", agents: ["banner_renderer", "banner_composer"] },
               { key: "landing_page",     label: "Landing", agents: ["landing_page_builder"] },
+              { key: "video_producer",   label: "Video",   agents: ["video_producer"] },
               { key: "qa",               label: "QA",      agents: ["qa"] },
             ]
 
