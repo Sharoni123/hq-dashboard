@@ -532,6 +532,7 @@ export default function KanbanBoard(
   const [selected, setSelected] = React.useState<TaskRecord | null>(null)
   const [templateOverride, setTemplateOverride] = React.useState<string>("auto")
   const [visualStyle, setVisualStyle] = React.useState<string>("auto")
+  const [videoEngine, setVideoEngine] = React.useState<string>("creatomate")
   const [, setRunning] = React.useState(false)
   const [runError, setRunError] = React.useState<string | null>(null)
   const [copiedText, setCopiedText] = React.useState(false)
@@ -660,6 +661,7 @@ export default function KanbanBoard(
           tone: taskType === "article" ? "marketing_editorial" : undefined,
           deliverable: getDeliverableForTaskType(taskType),
           visual_style: visualStyle !== "auto" ? visualStyle : undefined,
+          video_engine: videoEngine,
           assets: {
             logos: splitLines(taskLogoUrls),
             images: splitLines(taskImageUrls),
@@ -697,6 +699,7 @@ export default function KanbanBoard(
       setTaskType("campaign_plan")
       setTaskPriority("normal")
       setVisualStyle("auto")
+      setVideoEngine("creatomate")
       setLpBrandName(""); setLpLogoUrl(""); setLpPageSlug(""); setLpColorScheme("dark_luxury"); setLpTemplate("auto")
       setLpLanguage("he"); setLpWhatsappEnabled(false); setLpWhatsappNumber(""); setLpWhatsappMessage("")
       setLpPhoneInNav(""); setLpMetaPixelId(""); setLpZapierWebhook(""); setLpRedirectUrl("")
@@ -1750,6 +1753,17 @@ export default function KanbanBoard(
                       <option value="natural_warm">🌿 Natural & Warm — earthy tones, organic feel</option>
                       <option value="corporate_trust">🔵 Corporate & Trust — blues, professional, clean</option>
                       <option value="minimal_elegant">✦ Minimal Elegant — white space, typography-led</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-white/80">Video Engine</Label>
+                    <select
+                      value={videoEngine}
+                      onChange={(e) => setVideoEngine(e.target.value)}
+                      className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none"
+                    >
+                      <option value="creatomate">🎬 Creatomate — Pexels + ElevenLabs (full control)</option>
+                      <option value="heygen">✨ HeyGen — AI generates everything automatically</option>
                     </select>
                   </div>
                   <div className="space-y-2">
@@ -2852,6 +2866,50 @@ export default function KanbanBoard(
                           </div>
                         </div>
                       )}
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* ── Video Output ────────────────────────────────────────────── */}
+                {selected.output_data?.video_url ? (
+                  <div className="rounded-2xl border border-purple-500/20 bg-black/20 p-4">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <Video className="h-4 w-4 text-purple-400" />
+                        <div className="text-sm font-medium text-white/80">Video</div>
+                        <Badge className="border border-purple-500/20 bg-purple-500/15 text-purple-300">✓ ready</Badge>
+                        {selected.output_data?.engine ? (
+                          <Badge className="border border-white/10 bg-white/5 text-white/50">{selected.output_data.engine}</Badge>
+                        ) : null}
+                      </div>
+                      <a
+                        href={selected.output_data.video_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white hover:bg-white/10"
+                      >
+                        <ExternalLink className="mr-2 h-3.5 w-3.5" />
+                        Open Video
+                      </a>
+                    </div>
+                    <video
+                      src={selected.output_data.video_url}
+                      controls
+                      className="w-full rounded-xl border border-white/10"
+                      style={{ maxHeight: "480px" }}
+                    />
+                    {selected.output_data.duration ? (
+                      <div className="mt-2 text-xs text-white/40">{selected.output_data.duration}s · {selected.output_data.scenes?.length ?? 0} scenes</div>
+                    ) : null}
+                  </div>
+                ) : selected.output_data?.status === "rendering" ? (
+                  <div className="rounded-2xl border border-purple-500/20 bg-black/20 p-4">
+                    <div className="flex items-center gap-3">
+                      <Video className="h-4 w-4 text-purple-400 animate-pulse" />
+                      <div className="text-sm text-white/70">Rendering video... {selected.output_data.progress ?? 0}%</div>
+                    </div>
+                    <div className="mt-3 h-1.5 w-full rounded-full bg-white/10">
+                      <div className="h-1.5 rounded-full bg-purple-500 transition-all" style={{ width: `${selected.output_data.progress ?? 0}%` }} />
                     </div>
                   </div>
                 ) : null}
