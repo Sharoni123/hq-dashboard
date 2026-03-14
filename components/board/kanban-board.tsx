@@ -26,6 +26,7 @@ import { Label } from "@/components/ui/label"
 import {
   ChevronLeft,
   Clock3,
+  DollarSign,
   Sparkles,
   PenSquare,
   Palette,
@@ -472,6 +473,137 @@ async function downloadImageFromUrl(url: string, filename: string) {
   }
 }
 
+
+// ── Cost estimates ────────────────────────────────────────────────────────────
+const COST_MAP: Record<string, { label: string; cost: number; color: string }> = {
+  campaign_plan:     { label: "Campaign Plan",   cost: 0.02, color: "text-orange-400" },
+  ad_copy:           { label: "Ad Copy",          cost: 0.03, color: "text-emerald-400" },
+  article:           { label: "Article",          cost: 0.04, color: "text-emerald-400" },
+  visual_prompts:    { label: "Visual Direction", cost: 0.02, color: "text-pink-400" },
+  background_images: { label: "AI Images",        cost: 0.15, color: "text-cyan-400" },
+  banner_set:        { label: "Banners",          cost: 0.20, color: "text-amber-400" },
+  banner_composer:   { label: "Banner Composer",  cost: 0.10, color: "text-amber-300" },
+  landing_page:      { label: "Landing Page",     cost: 0.05, color: "text-blue-400" },
+  video:             { label: "Video",            cost: 0.45, color: "text-purple-400" },
+  qa_review:         { label: "QA Review",        cost: 0.02, color: "text-green-400" },
+}
+const FULL_CAMPAIGN_COST = Object.values(COST_MAP).reduce((s, v) => s + v.cost, 0)
+
+function fmt$(n: number) { return `$${n.toFixed(2)}` }
+function fmtMonth(d: string) { return new Date(d).toLocaleDateString("en-US", { month: "short", year: "numeric" }) }
+
+function UsageView() {
+  const [tasks, setTasks] = React.useState<TaskRecord[]>([])
+  const [loading, setLoading] = React.useState(true)
+
+  React.useEffect(() => {
+    pb.collection("tasks").getFullList<TaskRecord>({ sort: "-created", fields: "id,type,assigned_agent,status,created,goal_id" })
+      .then(setTasks).catch(console.error).finally(() => setLoading(false))
+  }, [])
+
+  const done = tasks.filter(t => t.status === "done")
+  const countByType: Record<string, number> = {}
+  for (const t of done) { const k = t.type || t.assigned_agent || "unknown"; countByType[k] = (countByType[k] || 0) + 1 }
+  const totalCost = Object.entries(countByType).reduce((s, [k, n]) => s + (COST_MAP[k]?.cost || 0.02) * n, 0)
+
+  const costByMonth: Record<string, number> = {}
+  for (const t of done) {
+    if (!t.created) continue
+    const m = fmtMonth(t.created)
+    const k = t.type || t.assigned_agent || "unknown"
+    costByMonth[m] = (costByMonth[m] || 0) + (COST_MAP[k]?.cost || 0.02)
+  }
+  const months = Object.entries(costByMonth).sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime())
+  const maxM = Math.max(...months.map(m => m[1]), 1)
+
+  const thisMonth = fmtMonth(new Date().toISOString())
+  const thisMonthCost = done.filter(t => t.created && fmtMonth(t.created) === thisMonth)
+    .reduce((s, t) => s + (COST_MAP[t.type || t.assigned_agent || "unknown"]?.cost || 0.02), 0)
+  const thisMonthCampaigns = done.filter(t => t.type === "campaign_plan" && t.created && fmtMonth(t.created) === thisMonth).length
+
+  if (loading) return <div className="flex items-center justify-center py-20 text-white/40 text-sm">Loading usage data...</div>
+
+  return (
+    <div className="space-y-5 py-2">
+      {/* Stats row */}
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        {[
+          { label: "Total Estimated Spend", value: fmt$(totalCost), sub: "all time", color: "border-emerald-500/20 bg-emerald-500/5" },
+          { label: "This Month", value: fmt$(thisMonthCost), sub: `${done.filter(t => t.created && fmtMonth(t.created) === thisMonth).length} tasks`, color: "border-blue-500/20 bg-blue-500/5" },
+          { label: "Campaigns This Month", value: String(thisMonthCampaigns), sub: `avg ${thisMonthCampaigns ? fmt$(thisMonthCost / thisMonthCampaigns) : "$0.00"}/campaign`, color: "border-purple-500/20 bg-purple-500/5" },
+          { label: "Full Campaign Cost", value: fmt$(FULL_CAMPAIGN_COST), sub: "estimated per run", color: "border-amber-500/20 bg-amber-500/5" },
+        ].map(s => (
+          <div key={s.label} className={`rounded-2xl border p-4 ${s.color}`}>
+            <div className="text-xs text-white/50 mb-1">{s.label}</div>
+            <div className="text-2xl font-bold text-white">{s.value}</div>
+            <div className="text-xs text-white/40 mt-0.5">{s.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-2">
+        {/* By task type */}
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+          <div className="mb-4 text-sm font-medium text-white/70 flex items-center gap-2">
+            <DollarSign className="h-4 w-4 text-emerald-400" /> Cost by Task Type
+          </div>
+          <div className="space-y-3">
+            {Object.entries(COST_MAP).map(([type, info]) => {
+              const count = countByType[type] || 0
+              const cost = info.cost * count
+              return (
+                <div key={type} className="space-y-1">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className={`${info.color}`}>{info.label}</span>
+                    <span className="text-white font-medium">{fmt$(cost)} <span className="text-white/30 text-xs font-normal">{count}×</span></span>
+                  </div>
+                  <div className="h-1 w-full rounded-full bg-white/10">
+                    <div className="h-1 rounded-full bg-white/25 transition-all" style={{ width: `${Math.min(100, totalCost > 0 ? (cost / totalCost) * 100 : 0)}%` }} />
+                  </div>
+                </div>
+              )
+            })}
+            <div className="border-t border-white/10 pt-3 flex justify-between">
+              <span className="text-sm text-white/50">Total</span>
+              <span className="text-lg font-bold text-emerald-400">{fmt$(totalCost)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-5">
+          {/* Monthly chart */}
+          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+            <div className="mb-4 text-sm font-medium text-white/70">Monthly Spend</div>
+            {months.length === 0 ? <div className="text-sm text-white/30">No data yet</div> : (
+              <div className="flex items-end gap-2" style={{ height: "80px" }}>
+                {months.map(([month, cost]) => (
+                  <div key={month} className="flex flex-1 flex-col items-center gap-1">
+                    <div className="text-[10px] text-white/50">{fmt$(cost)}</div>
+                    <div className="w-full rounded-t-md bg-emerald-500/40 hover:bg-emerald-500/60 transition-all" style={{ height: `${Math.max(4, (cost / maxM) * 55)}px` }} />
+                    <div className="text-[10px] text-white/30">{month}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Pricing reference */}
+          <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
+            <div className="mb-2 text-xs font-medium text-amber-400">💡 Pricing Reference</div>
+            <div className="space-y-1.5 text-xs text-white/60">
+              <div className="flex justify-between"><span>Full campaign (all tasks)</span><span className="text-white/80">{fmt$(FULL_CAMPAIGN_COST)}</span></div>
+              <div className="flex justify-between"><span>Images are the biggest cost</span><span className="text-white/80">${COST_MAP.background_images.cost}/run</span></div>
+              <div className="flex justify-between"><span>Video (Creatomate/HeyGen)</span><span className="text-white/80">${COST_MAP.video.cost}/run</span></div>
+              <div className="mt-2 pt-2 border-t border-white/10 text-white/35">Estimates based on typical API usage. Actual costs vary.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function KanbanBoard(
   props: { goalId?: string | null; agent?: string | null; goals?: GoalOption[] } = {}
 ) {
@@ -481,7 +613,7 @@ export default function KanbanBoard(
   const runnerUrl = process.env.NEXT_PUBLIC_AGENT_RUNNER_URL ?? ""
 
   const [dnd, setDnd] = React.useState<DndModule | null>(null)
-  const [activeView, setActiveView] = React.useState<"kanban" | "campaigns">("kanban")
+  const [activeView, setActiveView] = React.useState<"kanban" | "campaigns" | "usage">("kanban")
 
   const [cols, setCols] = React.useState<Record<ColumnId, TaskRecord[]>>({
     backlog: [],
@@ -1196,6 +1328,12 @@ export default function KanbanBoard(
                 >
                   Campaigns
                 </button>
+                <button
+                  onClick={() => setActiveView("usage")}
+                  className={`rounded-md px-3 py-1 text-xs font-medium transition-all ${activeView === "usage" ? "bg-emerald-500/20 text-emerald-300" : "text-white/40 hover:text-white/70"}`}
+                >
+                  💰 Usage
+                </button>
               </div>
             </div>
 
@@ -1243,6 +1381,7 @@ export default function KanbanBoard(
             }
 
             const PIPELINE_STAGES = [
+              { key: "planner",          label: "Plan",    agents: ["planner"] },
               { key: "copywriter",       label: "Copy",    agents: ["copywriter"] },
               { key: "visual_director",  label: "Visuals", agents: ["visual_director"] },
               { key: "image_generator",  label: "Images",  agents: ["image_generator"] },
@@ -1642,6 +1781,9 @@ export default function KanbanBoard(
             </div>
           </DragDropContext>
           ) : null}
+
+          {/* ── Usage & Costs View ────────────────────────────────────────────── */}
+          {activeView === "usage" ? <UsageView /> : null}
         </CardContent>
       </Card>
 
