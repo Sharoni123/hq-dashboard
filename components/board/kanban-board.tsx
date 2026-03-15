@@ -1993,6 +1993,7 @@ export default function KanbanBoard(
                         <option value="minimal_clean">✦ Minimal Clean — בוטיק, שירותים, עיצוב אלגנטי</option>
                         <option value="clean_split">🪵 Clean Split — מוצרים, מותגים, תמונות חזקות</option>
                         <option value="high_convert">🎯 High Convert — המרה גבוהה, direct response</option>
+                        <option value="hero_split">🏢 Hero Split — טופס בהירו + תוכן בצד (סגנון השקעות)</option>
                       </select>
                       <p className="text-white/30 text-xs">הצבעים נקבעים אוטומטית לפי הפלטה של הבאנרים</p>
                     </div>
@@ -2830,6 +2831,7 @@ export default function KanbanBoard(
                         <option value="minimal_clean">✦ Minimal Clean — בוטיק, שירותים, עיצוב</option>
                         <option value="clean_split">🪵 Clean Split — מוצרים, מותגים, תמונות חזקות</option>
                         <option value="high_convert">🎯 High Convert — המרה גבוהה, direct response</option>
+                        <option value="hero_split">🏢 Hero Split — טופס בהירו + תוכן בצד (סגנון השקעות)</option>
                       </select>
                       <button
                         onClick={async () => {
